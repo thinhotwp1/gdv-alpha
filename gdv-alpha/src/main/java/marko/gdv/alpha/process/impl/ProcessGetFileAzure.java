@@ -1,4 +1,6 @@
-package marko.gdv.alpha.process;
+package marko.gdv.alpha.process.impl;
+
+import marko.gdv.alpha.process.AbstractProcessGdv;
 
 import java.util.Map;
 
@@ -9,7 +11,8 @@ public class ProcessGetFileAzure extends AbstractProcessGdv<String, String> {
     }
 
     @Override
-    public String start(Object input) {
+    public String start(String input) {
+        // Logic get file in azure
         return input + " + getFileAzure";
     }
 }
