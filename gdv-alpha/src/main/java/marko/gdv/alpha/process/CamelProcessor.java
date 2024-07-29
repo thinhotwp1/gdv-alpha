@@ -19,7 +19,6 @@ import java.util.Properties;
 public class CamelProcessor {
 
     private List<CamelContext> camelContexts = new ArrayList<>();
-    private List<String> startEndpoints = new ArrayList<>();
 
     @Bean
     public void initializeCamelContexts() throws Exception {
@@ -44,38 +43,16 @@ public class CamelProcessor {
             properties.load(fis);
         }
 
-        List<ProcessGdv> processList = new ArrayList<>();
+        String processClassPath = properties.getProperty("process.classpath");
 
-        // Dynamically create process instances based on configuration
-        int i = 1;
-        while (true) {
-            String classPath = properties.getProperty("process" + i + ".classpath");
-            if (classPath == null) {
-                break;
-            }
-            ProcessGdv process = (ProcessGdv) Class.forName(classPath).getConstructor().newInstance();
-            processList.add(process);
-            i++;
-        }
+        ProcessGdv process = (ProcessGdv) Class.forName(processClassPath).getConstructor().newInstance();
 
         context.addRoutes(new RouteBuilder() {
             @Override
             public void configure() {
-                String currentEndpoint = "direct:startProcess";
-                for (int i = 0; i < processList.size(); i++) {
-                    String nextEndpoint = "direct:process" + (i + 1);
-                    from(currentEndpoint)
-                            .process(processList.get(i))
-                            .to(nextEndpoint);
-                    currentEndpoint = nextEndpoint;
-                }
-
-                // Final process output to mock endpoint or other endpoint
-                from(currentEndpoint)
-                        .to("mock:result");
-
-                // Remember the start endpoint
-                startEndpoints.add("direct:startProcess");
+                from("direct:startProcess")
+                        .process(process)
+                        .to("mock:result");  // Or use any endpoint you need
             }
         });
 
@@ -89,10 +66,8 @@ public class CamelProcessor {
 
     @Scheduled(fixedRate = 10000)  // 10 seconds
     public void triggerCamelContexts() {
-        for (String startEndpoint : startEndpoints) {
-            for (CamelContext context : camelContexts) {
-                context.createProducerTemplate().sendBody(startEndpoint, "Triggering process");
-            }
+        for (CamelContext context : camelContexts) {
+            context.createProducerTemplate().sendBody("direct:startProcess", "Triggering process");
         }
     }
 }
