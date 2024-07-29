@@ -2,6 +2,7 @@ package marko.gdv.alpha.process;
 
 import jakarta.annotation.PostConstruct;
 import org.apache.camel.CamelContext;
+import org.apache.camel.LoggingLevel;
 import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.impl.DefaultCamelContext;
 import org.springframework.stereotype.Component;
@@ -11,8 +12,13 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.nio.file.*;
-import java.util.*;
-import java.util.concurrent.*;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Properties;
+import java.util.TreeMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 @Component
 public class CamelProcessor {
@@ -49,15 +55,26 @@ public class CamelProcessor {
                     String nextEndpoint = "direct:process" + entry.getKey();
                     from(currentEndpoint)
                             .process(exchange -> {
+                                long startTime = System.currentTimeMillis();
+
                                 I input = (I) exchange.getIn().getBody();
+                                exchange.getIn().setHeader("inputBody", input);
                                 O output = entry.getValue().start(input);
                                 exchange.getIn().setBody(output);
+
+                                long elapsedTime = System.currentTimeMillis() - startTime;
+                                exchange.getIn().setHeader("processingTime", elapsedTime);
                             })
+                            .log(LoggingLevel.INFO, "================================")
+                            .log(LoggingLevel.INFO, "Input: ${header.inputBody}")
+                            .log(LoggingLevel.INFO, "Output: ${body}")
+                            .log(LoggingLevel.INFO, "Processing time: ${header.processingTime} ms")
                             .to(nextEndpoint);
                     currentEndpoint = nextEndpoint;
                 }
 
                 from(currentEndpoint)
+                        .log(LoggingLevel.INFO, "Final output: ${body}")
                         .to("mock:result");
             }
         });
@@ -98,7 +115,7 @@ public class CamelProcessor {
 
     private void runCamelContext(CamelContext context) {
         try {
-            context.createProducerTemplate().sendBody("direct:startProcess", "Start Process: ");
+            context.createProducerTemplate().sendBody("direct:startProcess", "");
         } catch (Exception e) {
             e.printStackTrace();
         }
