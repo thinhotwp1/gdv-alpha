@@ -66,7 +66,8 @@ public class CamelProcessor {
                                 exchange.getIn().setHeader("processingTime", elapsedTime);
                             })
                             .log(LoggingLevel.INFO, "================================")
-                            .log(LoggingLevel.INFO, "Input: ${header.inputBody}")
+                            .log(LoggingLevel.INFO, "Process ID: " + entry.getKey())
+                            .log(LoggingLevel.INFO, "Input Body: ${header.inputBody}")
                             .log(LoggingLevel.INFO, "Output: ${body}")
                             .log(LoggingLevel.INFO, "Processing time: ${header.processingTime} ms")
                             .to(nextEndpoint);
