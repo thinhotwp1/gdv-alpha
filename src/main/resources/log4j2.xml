@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration status="WARN">
+<!--    <Appenders>-->
+<!--        <File name="MetricsFile" fileName="metrics.log" append="true">-->
+<!--            <PatternLayout>-->
+<!--                <pattern>%d{yyyy-MM-dd HH:mm:ss} [%t] %-5level %logger{36} - %msg%n</pattern>-->
+<!--            </PatternLayout>-->
+<!--        </File>-->
+<!--        <Console name="Console" target="SYSTEM_OUT">-->
+<!--            <PatternLayout pattern="%d{yyyy-MM-dd HH:mm:ss} [%t] %-5level %logger{36} - %msg%n"/>-->
+<!--        </Console>-->
+<!--    </Appenders>-->
+<!--    <Loggers>-->
+<!--        <Logger name="org.apache.camel.component.metrics" level="info" additivity="false">-->
+<!--            <AppenderRef ref="MetricsFile"/>-->
+<!--            <AppenderRef ref="Console"/>-->
+<!--        </Logger>-->
+<!--        <Logger name="org.apache.camel" level="info" additivity="false">-->
+<!--            <AppenderRef ref="MetricsFile"/>-->
+<!--            <AppenderRef ref="Console"/>-->
+<!--        </Logger>-->
+<!--        <Root level="info">-->
+<!--            <AppenderRef ref="Console"/>-->
+<!--        </Root>-->
+<!--    </Loggers>-->
+
+    <Appenders>
+        <RollingFile name="RollingFileAppender" fileName="logs/file_log.log" filePattern="logs/file_log-%d{yyyy-MM-dd}-%i.log.gz">
+            <PatternLayout>
+                <Pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level %logger{36} - %msg%n</Pattern>
+            </PatternLayout>
+            <Policies>
+                <TimeBasedTriggeringPolicy />
+                <SizeBasedTriggeringPolicy size="50 MB" />
+            </Policies>
+            <DefaultRolloverStrategy>
+                <Delete basePath="logs" maxDepth="1">
+                    <IfFileName glob="file_log-*.log.gz" />
+                    <IfLastModified age="30d" />
+                </Delete>
+            </DefaultRolloverStrategy>
+        </RollingFile>
+    </Appenders>
+    <Loggers>
+        <Root level="info">
+            <AppenderRef ref="RollingFileAppender" />
+        </Root>
+    </Loggers>
+</Configuration>

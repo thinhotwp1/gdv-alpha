@@ -1,10 +1,15 @@
 package marko.gdv.alpha.process;
 
+import com.codahale.metrics.MetricRegistry;
 import jakarta.annotation.PostConstruct;
 import org.apache.camel.CamelContext;
 import org.apache.camel.LoggingLevel;
 import org.apache.camel.builder.RouteBuilder;
+import org.apache.camel.component.metrics.MetricsConstants;
+import org.apache.camel.component.metrics.routepolicy.MetricsRoutePolicyFactory;
 import org.apache.camel.impl.DefaultCamelContext;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.springframework.stereotype.Component;
 
 import java.io.File;
@@ -23,11 +28,14 @@ import java.util.concurrent.TimeUnit;
 @Component
 public class CamelProcessor {
 
+    private static final Logger logger = LogManager.getLogger(CamelProcessor.class);
+
     private final Map<File, ScheduledExecutorService> scheduledServices = new HashMap<>();
     private final Map<File, CamelContext> camelContexts = new HashMap<>();
 
     @PostConstruct
     public void initializeCamelContexts() throws Exception {
+        logger.info("Initializing Camel Contexts...");
         File configDirectory = new File("configs");
         File[] configFiles = configDirectory.listFiles((dir, name) -> name.endsWith(".properties"));
 
@@ -43,6 +51,11 @@ public class CamelProcessor {
 
     private <I, O> CamelContext createCamelContextFromConfig(File configFile) throws Exception {
         CamelContext context = new DefaultCamelContext();
+
+        // Add MetricsRoutePolicyFactory to context
+        MetricsRoutePolicyFactory factory = new MetricsRoutePolicyFactory();
+        factory.setMetricsRegistry(new MetricRegistry());
+        context.addRoutePolicyFactory(factory);
 
         Map<Integer, ProcessGdv<I, O>> processMap = new TreeMap<>();
         loadProperties(configFile, processMap);
@@ -70,7 +83,9 @@ public class CamelProcessor {
                             .log(LoggingLevel.INFO, "Input Body: ${header.inputBody}")
                             .log(LoggingLevel.INFO, "Output: ${body}")
                             .log(LoggingLevel.INFO, "Processing time: ${header.processingTime} ms")
-                            .to(nextEndpoint);
+                            .to(nextEndpoint)
+                            .to("metrics:counter:" + entry.getKey())
+                            .to("metrics:timer:" + entry.getKey() + "?action=stop");
                     currentEndpoint = nextEndpoint;
                 }
 
@@ -118,7 +133,7 @@ public class CamelProcessor {
         try {
             context.createProducerTemplate().sendBody("direct:startProcess", "");
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("Error running Camel Context: ", e);
         }
     }
 
@@ -156,7 +171,7 @@ public class CamelProcessor {
                 }
             }
         } catch (IOException ex) {
-            ex.printStackTrace();
+            logger.error("Error watching config directory: ", ex);
         }
     }
 
@@ -175,7 +190,7 @@ public class CamelProcessor {
             runCamelContext(configFile);
 
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("Error reloading config file: ", e);
         }
     }
 
